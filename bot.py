@@ -7,7 +7,6 @@ from telegram.ext import (
     ContextTypes,
 )
 
-
 TOKEN = "8686598628:AAFSsZaIsj0wHZ5jAG1AZvEj6zW5Om6_6X0"
 OWNER_ID = 1798646489
 CHANNEL_LINK = "https://t.me/+XyFq1BRVNERkYzNl"
@@ -46,44 +45,67 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         caption="""
 🔥 Welcome To Ravan Gift Bot 🔥
 
- Bhaiyo Niche Diye Gaye Group Ko Join Karo Aur Apne Kismat Ke Darwaze Kholo 🌟
+Bhaiyo Niche Diye Gaye Group Ko Join Karo Aur Apne Kismat Ke Darwaze Kholo 🌟
 
 👇 Join Channel 👇
 """,
         reply_markup=reply_markup
     )
 
-    # Notify owner
     await context.bot.send_message(
         chat_id=OWNER_ID,
-        text=f"🆕 New User Started Bot:\nID: {user_id}"
+        text=f"🆕 New User Started Bot\n\n👤 USER ID: {user_id}"
     )
 
 
-# FORWARD USER MESSAGE TO OWNER
+# USER MESSAGE TO ADMIN
 async def user_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     user_id = update.effective_user.id
-    text = update.message.text
 
     save_user(user_id)
 
     if user_id != OWNER_ID:
 
-        await context.bot.send_message(
-            chat_id=OWNER_ID,
-            text=f"""
+        # TEXT
+        if update.message.text:
+
+            await context.bot.send_message(
+                chat_id=OWNER_ID,
+                text=f"""
 📩 New Message
 
-👤 User ID: {user_id}
+👤 USER ID: {user_id}
 
-💬 Message:
-{text}
+💬 MESSAGE:
+{update.message.text}
 """
-        )
+            )
+
+        # PHOTO
+        elif update.message.photo:
+
+            photo = update.message.photo[-1].file_id
+
+            await context.bot.send_photo(
+                chat_id=OWNER_ID,
+                photo=photo,
+                caption=f"📸 Photo From User\n\nUSER ID: {user_id}"
+            )
+
+        # VIDEO
+        elif update.message.video:
+
+            video = update.message.video.file_id
+
+            await context.bot.send_video(
+                chat_id=OWNER_ID,
+                video=video,
+                caption=f"🎥 Video From User\n\nUSER ID: {user_id}"
+            )
 
 
-# REPLY COMMAND
+# REPLY USER
 async def reply_user(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     if update.effective_user.id != OWNER_ID:
@@ -106,36 +128,74 @@ async def reply_user(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
 
 
-# BROADCAST COMMAND
+# BROADCAST
 async def broadcast(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     if update.effective_user.id != OWNER_ID:
         return
 
-    message = " ".join(context.args)
-
     try:
+
         with open("users.txt", "r") as f:
             users = f.read().splitlines()
 
         success = 0
 
-        for user in users:
-            try:
-                await context.bot.send_message(
-                    chat_id=user,
-                    text=message
-                )
-                success += 1
-            except:
-                pass
+        # PHOTO BROADCAST
+        if update.message.reply_to_message and update.message.reply_to_message.photo:
+
+            photo = update.message.reply_to_message.photo[-1].file_id
+            caption = update.message.reply_to_message.caption or ""
+
+            for user in users:
+                try:
+                    await context.bot.send_photo(
+                        chat_id=user,
+                        photo=photo,
+                        caption=caption
+                    )
+                    success += 1
+                except:
+                    pass
+
+        # VIDEO BROADCAST
+        elif update.message.reply_to_message and update.message.reply_to_message.video:
+
+            video = update.message.reply_to_message.video.file_id
+            caption = update.message.reply_to_message.caption or ""
+
+            for user in users:
+                try:
+                    await context.bot.send_video(
+                        chat_id=user,
+                        video=video,
+                        caption=caption
+                    )
+                    success += 1
+                except:
+                    pass
+
+        # TEXT BROADCAST
+        else:
+
+            message = " ".join(context.args)
+
+            for user in users:
+                try:
+                    await context.bot.send_message(
+                        chat_id=user,
+                        text=message
+                    )
+                    success += 1
+                except:
+                    pass
 
         await update.message.reply_text(
             f"✅ Broadcast Sent To {success} Users"
         )
 
-    except:
-        await update.message.reply_text("No users found")
+    except Exception as e:
+        await update.message.reply_text(str(e))
 
 
 # ADMIN PANEL
@@ -147,10 +207,18 @@ async def admin(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("""
 👑 ADMIN PANEL
 
-Commands:
+✅ TEXT BROADCAST:
+/broadcast hello
 
-/broadcast yourmessage
+✅ IMAGE BROADCAST:
+Reply To Image With:
+/broadcast
 
+✅ VIDEO BROADCAST:
+Reply To Video With:
+/broadcast
+
+✅ REPLY USER:
 /reply userid message
 """)
 
@@ -164,7 +232,10 @@ app.add_handler(CommandHandler("reply", reply_user))
 app.add_handler(CommandHandler("admin", admin))
 
 app.add_handler(
-    MessageHandler(filters.TEXT & ~filters.COMMAND, user_message)
+    MessageHandler(
+        filters.TEXT | filters.PHOTO | filters.VIDEO,
+        user_message
+    )
 )
 
 print("Bot Running...")
