@@ -182,7 +182,7 @@ async def broadcast(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
             for user in users:
                 try:
-                    await context.bot.copy_message(
+                    await context.bot.send_message(
                         chat_id=user,
                         text=message
                     )
