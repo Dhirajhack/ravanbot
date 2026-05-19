@@ -46,9 +46,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         caption="""
 🔥 Welcome To Ravan Gift Bot 🔥
 
-✅ Daily Updates
-✅ Winning Posts
-✅ Fast Join Access
+ Bhaiyo Niche Diye Gaye Group Ko Join Karo Aur Apne Kismat Ke Darwaze Kholo 🌟
 
 👇 Join Channel 👇
 """,
