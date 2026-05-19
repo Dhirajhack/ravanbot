@@ -8,7 +8,7 @@ from telegram.ext import (
 )
 
 TOKEN = "8686598628:AAFSsZaIsj0wHZ5jAG1AZvEj6zW5Om6_6X0"
-OWNER_ID = 1798646489
+OWNER_ID = 1286165147
 CHANNEL_LINK = "https://t.me/+XyFq1BRVNERkYzNl"
 
 
