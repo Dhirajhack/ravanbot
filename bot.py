@@ -10,7 +10,7 @@ from telegram.ext import (
 
 TOKEN = "8686598628:AAFSsZaIsj0wHZ5jAG1AZvEj6zW5Om6_6X0"
 OWNER_ID = 1798646489
-CHANNEL_LINK = "https://t.me/+krrYQ39ra8kwMGE1"
+CHANNEL_LINK = "https://t.me/+XyFq1BRVNERkYzNl"
 
 
 # SAVE USER
@@ -42,9 +42,9 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     reply_markup = InlineKeyboardMarkup(keyboard)
 
     await update.message.reply_photo(
-        photo="https://i.ibb.co/tMvZFPSg/6134255172314664576.jpg",
+        photo="https://i.ibb.co/1JRBPy7s/6079886942251192249.jpg",
         caption="""
-🔥 Welcome To SM Gift Bot 🔥
+🔥 Welcome To Ravan Gift Bot 🔥
 
 ✅ Daily Updates
 ✅ Winning Posts
