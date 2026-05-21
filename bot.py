@@ -7,24 +7,40 @@ from telegram.ext import (
     ContextTypes,
 )
 
+import sqlite3
+
 TOKEN = "8686598628:AAFSsZaIsj0wHZ5jAG1AZvEj6zW5Om6_6X0"
 OWNER_ID = 1286165147
 CHANNEL_LINK = "https://t.me/+XyFq1BRVNERkYzNl"
 
 
+# DATABASE
+conn = sqlite3.connect("users.db", check_same_thread=False)
+cursor = conn.cursor()
+
+cursor.execute("""
+CREATE TABLE IF NOT EXISTS users (
+    user_id INTEGER PRIMARY KEY
+)
+""")
+
+conn.commit()
+
+
 # SAVE USER
 def save_user(user_id):
-    user_id = str(user_id)
 
     try:
-        with open("users.txt", "r") as f:
-            users = f.read().splitlines()
-    except:
-        users = []
 
-    if user_id not in users:
-        with open("users.txt", "a") as f:
-            f.write(user_id + "\n")
+        cursor.execute(
+            "INSERT OR IGNORE INTO users (user_id) VALUES (?)",
+            (user_id,)
+        )
+
+        conn.commit()
+
+    except:
+        pass
 
 
 # START COMMAND
@@ -67,42 +83,16 @@ async def user_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     if user_id != OWNER_ID:
 
-        # TEXT
-        if update.message.text:
+        try:
 
-            await context.bot.send_message(
+            await context.bot.forward_message(
                 chat_id=OWNER_ID,
-                text=f"""
-📩 New Message
-
-👤 USER ID: {user_id}
-
-💬 MESSAGE:
-{update.message.text}
-"""
+                from_chat_id=update.message.chat_id,
+                message_id=update.message.message_id
             )
 
-        # PHOTO
-        elif update.message.photo:
-
-            photo = update.message.photo[-1].file_id
-
-            await context.bot.send_photo(
-                chat_id=OWNER_ID,
-                photo=photo,
-                caption=f"📸 Photo From User\n\nUSER ID: {user_id}"
-            )
-
-        # VIDEO
-        elif update.message.video:
-
-            video = update.message.video.file_id
-
-            await context.bot.send_video(
-                chat_id=OWNER_ID,
-                video=video,
-                caption=f"🎥 Video From User\n\nUSER ID: {user_id}"
-            )
+        except:
+            pass
 
 
 # REPLY USER
@@ -112,6 +102,7 @@ async def reply_user(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     try:
+
         user_id = context.args[0]
         message = " ".join(context.args[1:])
 
@@ -123,8 +114,9 @@ async def reply_user(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("✅ Reply Sent")
 
     except:
+
         await update.message.reply_text(
-            "Use:\n/reply USERID message"
+            "Use:\n/reply userid message"
         )
 
 
@@ -134,67 +126,63 @@ async def broadcast(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.effective_user.id != OWNER_ID:
         return
 
+    if not update.message.reply_to_message:
+
+        await update.message.reply_text(
+            "Reply To Any Message With /broadcast"
+        )
+
+        return
+
     try:
 
-        with open("users.txt", "r") as f:
-            users = f.read().splitlines()
+        cursor.execute("SELECT user_id FROM users")
+
+        users = cursor.fetchall()
+
+        users = [user[0] for user in users]
 
         success = 0
 
-        # PHOTO BROADCAST
-        if update.message.reply_to_message and update.message.reply_to_message.photo:
+        dead_users = []
 
-            photo = update.message.reply_to_message.photo[-1].file_id
-            caption = update.message.reply_to_message.caption or ""
+        for user in users:
 
-            for user in users:
-                try:
-                    await context.bot.send_photo(
-                        chat_id=user,
-                        photo=photo,
-                        caption=caption
-                    )
-                    success += 1
-                except:
-                    pass
+            try:
 
-        # VIDEO BROADCAST
-        elif update.message.reply_to_message and update.message.reply_to_message.video:
+                await context.bot.copy_message(
+                    chat_id=user,
+                    from_chat_id=update.message.chat_id,
+                    message_id=update.message.reply_to_message.message_id
+                )
 
-            video = update.message.reply_to_message.video.file_id
-            caption = update.message.reply_to_message.caption or ""
+                success += 1
 
-            for user in users:
-                try:
-                    await context.bot.send_video(
-                        chat_id=user,
-                        video=video,
-                        caption=caption
-                    )
-                    success += 1
-                except:
-                    pass
+            except:
 
-        # TEXT BROADCAST
-        else:
+                dead_users.append(user)
 
-            message = " ".join(context.args)
+        # REMOVE BLOCKED USERS
+        for dead in dead_users:
 
-            for user in users:
-                try:
-                    await context.bot.send_message(
-                        chat_id=user,
-                        text=message
-                    )
-                    success += 1
-                except:
-                    pass
+            try:
+
+                cursor.execute(
+                    "DELETE FROM users WHERE user_id=?",
+                    (dead,)
+                )
+
+                conn.commit()
+
+            except:
+                pass
 
         await update.message.reply_text(
             f"✅ Broadcast Sent To {success} Users"
         )
 
     except Exception as e:
+
         await update.message.reply_text(str(e))
 
 
@@ -204,22 +192,55 @@ async def admin(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.effective_user.id != OWNER_ID:
         return
 
-    await update.message.reply_text("""
+    cursor.execute("SELECT COUNT(*) FROM users")
+
+    total_users = cursor.fetchone()[0]
+
+    await update.message.reply_text(f"""
 👑 ADMIN PANEL
 
-✅ TEXT BROADCAST:
-/broadcast hello
+👥 TOTAL USERS: {total_users}
 
-✅ IMAGE BROADCAST:
-Reply To Image With:
+━━━━━━━━━━━━━━━
+
+✅ TEXT BROADCAST
+
+Send Message
+Reply:
 /broadcast
 
-✅ VIDEO BROADCAST:
-Reply To Video With:
+━━━━━━━━━━━━━━━
+
+✅ IMAGE BROADCAST
+
+Send Image + Caption
+Reply:
 /broadcast
 
-✅ REPLY USER:
+━━━━━━━━━━━━━━━
+
+✅ VIDEO BROADCAST
+
+Send Video + Caption
+Reply:
+/broadcast
+
+━━━━━━━━━━━━━━━
+
+✅ REPLY USER
+
 /reply userid message
+
+━━━━━━━━━━━━━━━
+
+✅ Supports:
+
+🔥 Premium Emojis
+📸 Images
+🎥 Videos
+🎬 GIF
+✨ Formatting
+📩 Forward Messages
 """)
 
 
@@ -233,11 +254,11 @@ app.add_handler(CommandHandler("admin", admin))
 
 app.add_handler(
     MessageHandler(
-        filters.TEXT | filters.PHOTO | filters.VIDEO,
+        filters.TEXT | filters.PHOTO | filters.VIDEO | filters.ALL,
         user_message
     )
 )
 
-print("Bot Running...")
+print("Bot Running 24/7...")
 
 app.run_polling()
