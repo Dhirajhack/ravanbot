@@ -9,12 +9,18 @@ from telegram.ext import (
 
 import sqlite3
 
+# =========================
+# BOT SETTINGS
+# =========================
+
 TOKEN = "8686598628:AAFSsZaIsj0wHZ5jAG1AZvEj6zW5Om6_6X0"
 OWNER_ID = 1286165147
 CHANNEL_LINK = "https://t.me/+XyFq1BRVNERkYzNl"
 
-
+# =========================
 # DATABASE
+# =========================
+
 conn = sqlite3.connect("users.db", check_same_thread=False)
 cursor = conn.cursor()
 
@@ -26,8 +32,10 @@ CREATE TABLE IF NOT EXISTS users (
 
 conn.commit()
 
-
+# =========================
 # SAVE USER
+# =========================
+
 def save_user(user_id):
 
     try:
@@ -42,8 +50,10 @@ def save_user(user_id):
     except:
         pass
 
-
+# =========================
 # START COMMAND
+# =========================
+
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     user_id = update.effective_user.id
@@ -58,6 +68,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     await update.message.reply_photo(
         photo="https://i.ibb.co/1JRBPy7s/6079886942251192249.jpg",
+
         caption="""
 🔥 Welcome To Ravan Gift Bot 🔥
 
@@ -65,71 +76,99 @@ Bhaiyo Niche Diye Gaye Group Ko Join Karo Aur Apne Kismat Ke Darwaze Kholo 🌟
 
 👇 Join Channel 👇
 """,
+
         reply_markup=reply_markup
     )
 
-    await context.bot.send_message(
-        chat_id=OWNER_ID,
-        text=f"🆕 New User Started Bot\n\n👤 USER ID: {user_id}"
-    )
+    # Notify admin
+    try:
 
+        await context.bot.send_message(
+            chat_id=OWNER_ID,
+            text=f"🆕 New User Started Bot\n\n👤 USER ID: {user_id}"
+        )
 
+    except:
+        pass
+
+# =========================
 # USER MESSAGE TO ADMIN
+# =========================
+
 async def user_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     user_id = update.effective_user.id
 
     save_user(user_id)
 
-    if user_id != OWNER_ID:
-
-        try:
-
-            await context.bot.forward_message(
-                chat_id=OWNER_ID,
-                from_chat_id=update.message.chat_id,
-                message_id=update.message.message_id
-            )
-
-        except:
-            pass
-
-
-# REPLY USER
-async def reply_user(update: Update, context: ContextTypes.DEFAULT_TYPE):
-
-    if update.effective_user.id != OWNER_ID:
+    # Ignore admin own messages
+    if user_id == OWNER_ID:
         return
 
     try:
 
-        user_id = context.args[0]
-        message = " ".join(context.args[1:])
-
-        await context.bot.send_message(
-            chat_id=user_id,
-            text=message
+        # Forward exact user message
+        await context.bot.forward_message(
+            chat_id=OWNER_ID,
+            from_chat_id=update.message.chat_id,
+            message_id=update.message.message_id
         )
 
-        await update.message.reply_text("✅ Reply Sent")
+    except Exception as e:
+        print(e)
 
-    except:
+# =========================
+# ADMIN AUTO REPLY
+# =========================
 
-        await update.message.reply_text(
-            "Use:\n/reply userid message"
-        )
+async def reply_user(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
-
-# BROADCAST
-async def broadcast(update: Update, context: ContextTypes.DEFAULT_TYPE):
-
+    # Only owner
     if update.effective_user.id != OWNER_ID:
         return
 
+    # Must reply to forwarded message
+    if not update.message.reply_to_message:
+        return
+
+    try:
+
+        forwarded_message = update.message.reply_to_message
+
+        # Get original user id
+        if forwarded_message.forward_from:
+
+            user_id = forwarded_message.forward_from.id
+
+            # Copy exact admin reply
+            # Preserves premium emojis, formatting, media etc
+            await context.bot.copy_message(
+                chat_id=user_id,
+                from_chat_id=update.message.chat_id,
+                message_id=update.message.message_id
+            )
+
+            await update.message.reply_text("✅ Reply Sent")
+
+    except Exception as e:
+
+        print(e)
+
+# =========================
+# BROADCAST
+# =========================
+
+async def broadcast(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
+    # Only owner
+    if update.effective_user.id != OWNER_ID:
+        return
+
+    # Must reply to message
     if not update.message.reply_to_message:
 
         await update.message.reply_text(
-            "Reply To Any Message With /broadcast"
+            "❌ Reply To Any Message With /broadcast"
         )
 
         return
@@ -143,6 +182,7 @@ async def broadcast(update: Update, context: ContextTypes.DEFAULT_TYPE):
         users = [user[0] for user in users]
 
         success = 0
+        failed = 0
 
         dead_users = []
 
@@ -150,6 +190,7 @@ async def broadcast(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
             try:
 
+                # Copy exact message
                 await context.bot.copy_message(
                     chat_id=user,
                     from_chat_id=update.message.chat_id,
@@ -160,9 +201,11 @@ async def broadcast(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
             except:
 
+                failed += 1
+
                 dead_users.append(user)
 
-        # REMOVE BLOCKED USERS
+        # Remove blocked users
         for dead in dead_users:
 
             try:
@@ -178,15 +221,22 @@ async def broadcast(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 pass
 
         await update.message.reply_text(
-            f"✅ Broadcast Sent To {success} Users"
+            f"""
+✅ Broadcast Completed
+
+👥 Success: {success}
+❌ Failed: {failed}
+"""
         )
 
     except Exception as e:
 
         await update.message.reply_text(str(e))
 
-
+# =========================
 # ADMIN PANEL
+# =========================
+
 async def admin(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     if update.effective_user.id != OWNER_ID:
@@ -205,60 +255,72 @@ async def admin(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 ✅ TEXT BROADCAST
 
-Send Message
-Reply:
+Reply To Any Message:
 /broadcast
 
 ━━━━━━━━━━━━━━━
 
 ✅ IMAGE BROADCAST
 
-Send Image + Caption
-Reply:
+Reply To Image:
 /broadcast
 
 ━━━━━━━━━━━━━━━
 
 ✅ VIDEO BROADCAST
 
-Send Video + Caption
-Reply:
+Reply To Video:
 /broadcast
 
 ━━━━━━━━━━━━━━━
 
-✅ REPLY USER
+✅ AUTO REPLY SYSTEM
 
-/reply userid message
+Just Reply To User Message
 
 ━━━━━━━━━━━━━━━
 
-✅ Supports:
+✅ SUPPORTS
 
 🔥 Premium Emojis
-📸 Images
+✨ Telegram Formatting
+📸 Photos
 🎥 Videos
 🎬 GIF
-✨ Formatting
+🎵 Audio
+🎤 Voice
+📄 Documents
 📩 Forward Messages
+🎯 Stickers
 """)
 
-
+# =========================
 # MAIN
+# =========================
+
 app = Application.builder().token(TOKEN).build()
 
+# Commands
 app.add_handler(CommandHandler("start", start))
 app.add_handler(CommandHandler("broadcast", broadcast))
-app.add_handler(CommandHandler("reply", reply_user))
 app.add_handler(CommandHandler("admin", admin))
 
+# Admin auto reply
 app.add_handler(
     MessageHandler(
-        filters.TEXT | filters.PHOTO | filters.VIDEO | filters.ALL,
+        filters.REPLY & filters.ALL,
+        reply_user
+    )
+)
+
+# User messages
+app.add_handler(
+    MessageHandler(
+        filters.ALL,
         user_message
     )
 )
 
-print("Bot Running 24/7...")
+print("🚀 Bot Running 24/7...")
 
 app.run_polling()
