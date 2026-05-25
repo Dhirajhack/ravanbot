@@ -68,7 +68,6 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     await update.message.reply_photo(
         photo="https://i.ibb.co/1JRBPy7s/6079886942251192249.jpg",
-
         caption="""
 🔥 Welcome To Ravan Gift Bot 🔥
 
@@ -76,11 +75,10 @@ Bhaiyo Niche Diye Gaye Group Ko Join Karo Aur Apne Kismat Ke Darwaze Kholo 🌟
 
 👇 Join Channel 👇
 """,
-
         reply_markup=reply_markup
     )
 
-    # Notify admin
+    # Notify Admin
     try:
 
         await context.bot.send_message(
@@ -97,17 +95,20 @@ Bhaiyo Niche Diye Gaye Group Ko Join Karo Aur Apne Kismat Ke Darwaze Kholo 🌟
 
 async def user_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
+    if not update.message:
+        return
+
     user_id = update.effective_user.id
 
     save_user(user_id)
 
-    # Ignore admin own messages
+    # Ignore owner messages
     if user_id == OWNER_ID:
         return
 
     try:
 
-        # Forward exact user message
+        # Forward exact message
         await context.bot.forward_message(
             chat_id=OWNER_ID,
             from_chat_id=update.message.chat_id,
@@ -123,6 +124,9 @@ async def user_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def reply_user(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
+    if not update.message:
+        return
+
     # Only owner
     if update.effective_user.id != OWNER_ID:
         return
@@ -133,16 +137,16 @@ async def reply_user(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     try:
 
-        forwarded_message = update.message.reply_to_message
+        replied_msg = update.message.reply_to_message
 
         # Get original user id
-        if forwarded_message.forward_from:
+        if replied_msg.forward_from:
 
-            user_id = forwarded_message.forward_from.id
+            user_id = replied_msg.forward_from.id
 
-            # Copy exact admin reply
-            # Preserves premium emojis, formatting, media etc
-            await context.bot.copy_message(
+            # FORWARD exact admin message
+            # Preserves premium emojis perfectly
+            await context.bot.forward_message(
                 chat_id=user_id,
                 from_chat_id=update.message.chat_id,
                 message_id=update.message.message_id
@@ -151,7 +155,6 @@ async def reply_user(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.message.reply_text("✅ Reply Sent")
 
     except Exception as e:
-
         print(e)
 
 # =========================
@@ -160,7 +163,6 @@ async def reply_user(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def broadcast(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
-    # Only owner
     if update.effective_user.id != OWNER_ID:
         return
 
@@ -190,8 +192,8 @@ async def broadcast(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
             try:
 
-                # Copy exact message
-                await context.bot.copy_message(
+                # Forward exact message
+                await context.bot.forward_message(
                     chat_id=user,
                     from_chat_id=update.message.chat_id,
                     message_id=update.message.reply_to_message.message_id
@@ -202,7 +204,6 @@ async def broadcast(update: Update, context: ContextTypes.DEFAULT_TYPE):
             except:
 
                 failed += 1
-
                 dead_users.append(user)
 
         # Remove blocked users
@@ -220,14 +221,12 @@ async def broadcast(update: Update, context: ContextTypes.DEFAULT_TYPE):
             except:
                 pass
 
-        await update.message.reply_text(
-            f"""
+        await update.message.reply_text(f"""
 ✅ Broadcast Completed
 
 👥 Success: {success}
 ❌ Failed: {failed}
-"""
-        )
+""")
 
     except Exception as e:
 
@@ -290,8 +289,8 @@ Just Reply To User Message
 🎵 Audio
 🎤 Voice
 📄 Documents
-📩 Forward Messages
 🎯 Stickers
+📩 Forward Messages
 """)
 
 # =========================
@@ -305,18 +304,18 @@ app.add_handler(CommandHandler("start", start))
 app.add_handler(CommandHandler("broadcast", broadcast))
 app.add_handler(CommandHandler("admin", admin))
 
-# Admin auto reply
+# Admin reply handler
 app.add_handler(
     MessageHandler(
-        filters.REPLY & filters.ALL,
+        filters.REPLY & ~filters.COMMAND,
         reply_user
     )
 )
 
-# User messages
+# User message handler
 app.add_handler(
     MessageHandler(
-        filters.ALL,
+        ~filters.COMMAND,
         user_message
     )
 )
